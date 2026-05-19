@@ -4,7 +4,7 @@
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
-VAULT="$PROJECT_ROOT"
+VAULT="$PROJECT_ROOT/Research"
 
 # Parse flags
 NO_PROMPT=false
@@ -78,7 +78,11 @@ echo ''
 echo -e '\uf9c6 Second Brain 2 is ready!'
 echo ''
 echo -e '   \uf015 Vault:       '"$VAULT"
-echo -e '   \uf4d4 Query:       python3 '"$VAULT"'/vault_query.py --interactive'
+QUERY_SCRIPT="$HOME/SecondBrain/vault_query.py"
+if [ ! -f "$QUERY_SCRIPT" ]; then
+    QUERY_SCRIPT="$PROJECT_ROOT/vault_query.py"
+fi
+echo -e '   \uf4d4 Query:       python3 '"$QUERY_SCRIPT"' --interactive'
 echo -e '   \uf473 Ollama:      http://localhost:11434'
 echo ''
 

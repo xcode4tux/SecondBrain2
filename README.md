@@ -13,7 +13,7 @@ A local-first, privacy-respecting knowledge base built on [Obsidian](https://obs
 
 ```
 SecondBrain2/
-├── Research/                    # Obsidian vault (open this in Obsidian)
+├── Research/                    # Obsidian vault (open THIS in Obsidian)
 │   └── .obsidian/              # Obsidian config (graph, plugins, theme)
 ├── bootstrap_vault.sh          # Create a new PARA-structured vault from scratch
 ├── scripts/
