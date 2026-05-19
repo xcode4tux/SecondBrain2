@@ -78,7 +78,14 @@ fi
 if [ -n "$OBSIDIAN_CMD" ]; then
     echo -e '   \uf015 Opening Obsidian with vault...'
     if $OBSIDIAN_USES_PATH_ARG; then
-        nohup $OBSIDIAN_CMD --path="$VAULT" > /dev/null 2>&1 &
+        # Flatpak manages its own process lifecycle — just launch it and move on.
+        # Using systemd-run --user ensures the process survives terminal close.
+        if command -v systemd-run > /dev/null 2>&1; then
+            systemd-run --user --no-block $OBSIDIAN_CMD --path="$VAULT" > /dev/null 2>&1 || \
+                nohup $OBSIDIAN_CMD --path="$VAULT" > /dev/null 2>&1 &
+        else
+            nohup $OBSIDIAN_CMD --path="$VAULT" > /dev/null 2>&1 &
+        fi
     else
         nohup $OBSIDIAN_CMD "$VAULT" > /dev/null 2>&1 &
     fi
