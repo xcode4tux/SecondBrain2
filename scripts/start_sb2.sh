@@ -56,20 +56,32 @@ else
 fi
 
 # Open vault in Obsidian
+# Detection order: Flatpak > desktop binary > snap > CLI socket
+# The 'obsidian' CLI at ~/.local/bin only communicates via socket with a
+# running instance — it cannot launch Obsidian. So we check Flatpak first,
+# which is the most common deployment method on Linux.
 OBSIDIAN_CMD=""
-if command -v obsidian > /dev/null 2>&1; then
-    OBSIDIAN_CMD="obsidian"
-elif flatpak list 2>/dev/null | grep -q md.obsidian.Obsidian; then
+OBSIDIAN_USES_PATH_ARG=false
+if flatpak list 2>/dev/null | grep -q md.obsidian.Obsidian; then
     OBSIDIAN_CMD="flatpak run md.obsidian.Obsidian"
+    # Flatpak Obsidian uses --path for vault argument
+    OBSIDIAN_USES_PATH_ARG=true
 elif [ -f /usr/bin/obsidian ]; then
     OBSIDIAN_CMD="/usr/bin/obsidian"
 elif [ -f /snap/bin/obsidian ]; then
     OBSIDIAN_CMD="/snap/bin/obsidian"
+elif command -v obsidian > /dev/null 2>&1; then
+    # obsidian CLI (socket-based) — only works if Obsidian is already running
+    OBSIDIAN_CMD="obsidian"
 fi
 
 if [ -n "$OBSIDIAN_CMD" ]; then
     echo -e '   \uf015 Opening Obsidian with vault...'
-    nohup $OBSIDIAN_CMD "$VAULT" > /dev/null 2>&1 &
+    if $OBSIDIAN_USES_PATH_ARG; then
+        nohup $OBSIDIAN_CMD --path="$VAULT" > /dev/null 2>&1 &
+    else
+        nohup $OBSIDIAN_CMD "$VAULT" > /dev/null 2>&1 &
+    fi
 else
     echo -e '   \uf28b Obsidian not found. Open vault manually at: '"$VAULT"
 fi
