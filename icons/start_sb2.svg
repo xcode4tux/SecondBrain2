@@ -1,0 +1,80 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glass" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feComposite in="blur" in2="SourceGraphic" operator="arithmetic" k2="0.5" k3="0.5"/>
+    </filter>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="brainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399;stop-opacity:1"/>
+      <stop offset="50%" style="stop-color:#10b981;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="nodeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6ee7b7;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#34d399;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+  <!-- Background: dark rounded square -->
+  <rect x="0" y="0" width="256" height="256" rx="36" ry="36" fill="#1e1e1e"/>
+  <!-- Glass effect: white overlay with blur -->
+  <circle cx="128" cy="128" r="100" fill="white" fill-opacity="0.15" filter="url(#glass)"/>
+  <!-- Inner shadow -->
+  <rect x="0" y="0" width="256" height="256" rx="36" ry="36" fill="black" fill-opacity="0.08"/>
+
+  <!-- Brain outline — left hemisphere -->
+  <path d="M 128 58 C 108 58 95 68 90 82 C 82 78 72 82 68 92 C 62 104 66 116 74 122 C 64 126 58 136 60 148 C 62 158 70 164 78 166 C 76 174 80 184 90 190 C 98 194 108 192 114 186 C 118 194 126 198 134 198" 
+        fill="none" stroke="url(#brainGrad)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Brain outline — right hemisphere -->
+  <path d="M 128 58 C 148 58 161 68 166 82 C 174 78 184 82 188 92 C 194 104 190 116 182 122 C 192 126 198 136 196 148 C 194 158 186 164 178 166 C 180 174 176 184 166 190 C 158 194 148 192 142 186 C 138 194 130 198 122 198" 
+        fill="none" stroke="url(#brainGrad)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Brain fissure (center line) -->
+  <path d="M 128 62 C 128 80 126 100 128 120 C 130 140 128 160 128 196" 
+        fill="none" stroke="#10b981" stroke-width="3" stroke-opacity="0.5" stroke-dasharray="6,4" stroke-linecap="round"/>
+
+  <!-- Neural nodes (synapses) -->
+  <!-- Top-left cluster -->
+  <circle cx="88" cy="88" r="5" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  <circle cx="82" cy="108" r="4" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  <circle cx="76" cy="136" r="4.5" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  <circle cx="86" cy="162" r="4" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  
+  <!-- Top-right cluster -->
+  <circle cx="168" cy="88" r="5" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  <circle cx="174" cy="108" r="4" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  <circle cx="180" cy="136" r="4.5" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  <circle cx="170" cy="162" r="4" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  
+  <!-- Central nodes -->
+  <circle cx="128" cy="78" r="4.5" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  <circle cx="100" cy="125" r="3.5" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  <circle cx="156" cy="125" r="3.5" fill="url(#nodeGrad)" filter="url(#glow)"/>
+  <circle cx="128" cy="185" r="4.5" fill="url(#nodeGrad)" filter="url(#glow)"/>
+
+  <!-- Neural connections -->
+  <line x1="88" y1="88" x2="82" y2="108" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.6"/>
+  <line x1="82" y1="108" x2="76" y2="136" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.6"/>
+  <line x1="76" y1="136" x2="86" y2="162" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.6"/>
+  <line x1="168" y1="88" x2="174" y2="108" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.6"/>
+  <line x1="174" y1="108" x2="180" y2="136" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.6"/>
+  <line x1="180" y1="136" x2="170" y2="162" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.6"/>
+  <line x1="128" y1="78" x2="88" y2="88" stroke="#10b981" stroke-width="1.2" stroke-opacity="0.4"/>
+  <line x1="128" y1="78" x2="168" y2="88" stroke="#10b981" stroke-width="1.2" stroke-opacity="0.4"/>
+  <line x1="100" y1="125" x2="156" y2="125" stroke="#10b981" stroke-width="1.2" stroke-opacity="0.4"/>
+  <line x1="100" y1="125" x2="82" y2="108" stroke="#10b981" stroke-width="1.2" stroke-opacity="0.4"/>
+  <line x1="156" y1="125" x2="174" y2="108" stroke="#10b981" stroke-width="1.2" stroke-opacity="0.4"/>
+  <line x1="128" y1="185" x2="86" y2="162" stroke="#10b981" stroke-width="1.2" stroke-opacity="0.4"/>
+  <line x1="128" y1="185" x2="170" y2="162" stroke="#10b981" stroke-width="1.2" stroke-opacity="0.4"/>
+
+  <!-- Subtle outer glow behind the brain -->
+  <path d="M 128 50 C 100 50 80 65 72 85 C 58 80 48 88 44 100 C 38 116 46 132 58 138 C 46 144 40 158 42 172 C 44 184 54 192 66 194 C 64 206 70 218 82 224 C 96 230 110 226 118 218 C 122 228 132 232 140 230 C 148 228 154 220 156 214 C 168 222 182 220 192 210 C 200 202 202 188 196 176 C 208 172 214 158 212 144 C 210 132 202 124 192 122 C 202 114 206 100 200 88 C 194 76 180 72 170 78 C 168 64 152 50 128 50 Z" 
+        fill="#10b981" fill-opacity="0.08"/>
+</svg>

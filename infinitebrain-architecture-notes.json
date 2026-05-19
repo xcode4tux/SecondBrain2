@@ -1,0 +1,173 @@
+[
+  {
+    "title": "JSON File-Per-Node Storage Pattern",
+    "component": "storage.py",
+    "tags": ["architecture", "storage", "persistence", "tradeoff", "json"],
+    "insight": "InfiniteBrain stores each Node as an individual JSON file (nodes/{uuid}.json) rather than in a database. This simplifies deployment (no DB dependency) and makes individual node access trivial, but means all list/search operations require scanning every file on disk — O(n) for any query.",
+    "evidence": "Storage.save_node writes to nodes/{node_id}.json; list_nodes, search_nodes, and list_trashed all glob *.json and iterate, parsing each file individually.",
+    "implications": "Works well for personal-scale knowledge bases (hundreds to low thousands of nodes). Will degrade significantly at scale. No indexing means no O(1) lookups by tag/type. The edges-embedded-in-node design also means finding reverse edges requires scanning all nodes.",
+    "related_notes": ["Edges Stored Inline Within Nodes", "Soft-Delete With Trash Cleanup", "On-Demand FAISS Index Build"]
+  },
+  {
+    "title": "Edges Stored Inline Within Nodes",
+    "component": "models.py",
+    "tags": ["architecture", "data-model", "graph", "tradeoff"],
+    "insight": "Edges are not stored in a separate collection — each Node contains a list of Edge objects pointing outward. This makes outgoing-edge traversal O(1) from a loaded node, but reverse-edge queries (finding what points TO a node) require scanning all nodes.",
+    "evidence": "Node model has `edges: List[Edge]` field; Edge only has `target_node_id`, `edge_type`, `weight`, `metadata` — no source field. list_edges in api.py iterates all nodes to reconstruct edge list.",
+    "implications": "Graph traversal is asymmetric: following outgoing edges is cheap, incoming edges are expensive. The /neighbors endpoint only returns outgoing neighbors. The /admin/cleanup/orphan-edges endpoint exists specifically because deleted targets leave dangling edges.",
+    "related_notes": ["JSON File-Per-Node Storage Pattern", "Soft-Delete With Trash Cleanup"]
+  },
+  {
+    "title": "NodeType Enum Defines Knowledge Ontology",
+    "component": "models.py",
+    "tags": ["data-model", "ontology", "zettelkasten"],
+    "insight": "The NodeType enum establishes a fixed ontology of 15 knowledge categories: Pillars, Decisions, Concepts, Questions, Playbooks, Tasks, Events, Patterns, Hypotheses, Facts, Sources, Bookmarks, Notes, Contacts, References, and Custom. This mirrors Zettelkasten practice — each type serves a distinct cognitive function.",
+    "evidence": "NodeType(str, Enum) with 15 values; EdgeType(str, Enum) with 10 relationship types (Supports, Contradicts, Depends on, Derived from, Related to, Part of, Preceded by, Followed by, Authored, Tagging).",
+    "implications": "The ontology is hardcoded — adding a new node type requires a code change. The 'Custom' type provides an escape hatch but loses the structural guarantee. The EdgeType vocabulary enables typed relationships that go beyond simple linking, supporting reasoning patterns like contradiction chains and dependency graphs.",
+    "related_notes": ["Edges Stored Inline Within Nodes", "Ingestion Tags Source Type"]
+  },
+  {
+    "title": "Soft-Delete With Trash Cleanup",
+    "component": "storage.py",
+    "tags": ["architecture", "data-pattern", "lifecycle"],
+    "insight": "Deletion uses a soft-delete pattern: delete_node sets node.deleted_at to a UTC timestamp rather than removing the file. A periodic cleanup thread (every 24 hours) hard-deletes nodes in trash older than 30 days. Nodes can be restored from trash.",
+    "evidence": "Storage.delete_node(hard=False) sets deleted_at; Storage.restore_node clears it; Storage.cleanup_old_trash(days=30) permanently removes old trashed files. API has /trash, /trash/cleanup, and node restore endpoints.",
+    "implications": "Provides a safety net for accidental deletions. The cleanup scheduler uses threading.Event for clean shutdown. The 30-day retention is configurable. Hard delete via ?hard=true is available but not default. Trashed nodes are filtered out of normal queries, which means every list_nodes call must check deleted_at.",
+    "related_notes": ["JSON File-Per-Node Storage Pattern", "Background Threads In API Process"]
+  },
+  {
+    "title": "Tiered API Key Authentication With Grace-Period Rotation",
+    "component": "api.py",
+    "tags": ["security", "auth", "pattern"],
+    "insight": "API keys have a tier system (free/basic/premium/enterprise) that controls rate limits. Key rotation uses a grace-period approach: when an old key is rotated, both old and new keys work for 1 hour. Admin keys are separate from API keys for privilege separation.",
+    "evidence": "KEY_TIERS dict maps keys to tiers; TIER_RATE_LIMITS defines per-tier limits; _key_rotation_state tracks rotating keys with expires_at timestamps; verify_admin_key verifies both API key AND admin key; verify_api_key checks rotation state to allow grace-period access.",
+    "implications": "Zero-downtime key rotation is achievable without database transactions. Thread safety uses threading.Lock for all shared state mutations. The grace period prevents service disruption during rotation but requires monitoring for keys that haven't been replaced.",
+    "related_notes": ["Thread Safety Without External Coordination"]
+  },
+  {
+    "title": "Thread Safety Without External Coordination",
+    "component": "api.py",
+    "tags": ["architecture", "concurrency", "pattern"],
+    "insight": "The entire application uses in-process Python threading for concurrency safety — no Redis locks, no database transactions. Shared state (API keys, rate limit metrics, LLM cache, key rotation state) is protected by threading.Lock. This works because FastAPI runs in a single process with threading for I/O.",
+    "evidence": "_api_keys_lock, _rate_limit_metrics_lock, _llm_cache_lock, _key_rotation_lock, _dirty_lock, _index_lock, _building_lock, _model_lock — all threading.Lock instances protecting shared in-memory state.",
+    "implications": "This breaks if the app is deployed with multiple workers (gunicorn -w N) since each worker has its own in-memory state. The design assumes single-process deployment. The LLM cache is also per-process, limiting its effectiveness. Scaling would require externalizing this state.",
+    "related_notes": ["In-Process LLM Response Cache", "On-Demand FAISS Index Build"]
+  },
+  {
+    "title": "In-Process LLM Response Cache",
+    "component": "api.py",
+    "tags": ["performance", "caching", "pattern"],
+    "insight": "LLM responses are cached in a Python dict with TTL (1 hour) and max size (500 entries). Cache keys are SHA-256 hashes of provider:model:prompt. Eviction is FIFO-by-timestamp when capacity is reached. The cache is invalidated on index rebuilds and can be cleared via API.",
+    "evidence": "_llm_response_cache dict with (response, timestamp) tuples; _get_cache_key uses SHA-256; eviction removes oldest entry; LLM_CACHE_TTL_SECONDS=3600, LLM_CACHE_MAX_SIZE=500; config is runtime-adjustable via PUT /metrics/cache/config.",
+    "implications": "Cache is effective for repeated queries to the same question but lost on process restart. Runtime-adjustable config via API is convenient but the changes aren't persisted. The cache stats (hits, misses, hit rate) are exposed via /metrics/cache. The cache key includes model and provider, so different model configs won't collide.",
+    "related_notes": ["Thread Safety Without External Coordination", "LLM-Augmented Knowledge Graph Interrogation"]
+  },
+  {
+    "title": "On-Demand FAISS Index Build",
+    "component": "embeddings.py",
+    "tags": ["architecture", "search", "performance", "pattern"],
+    "insight": "The FAISS vector index is not rebuilt on every node change. Instead, a dirty flag is set on updates, and the index is rebuilt lazily on next search or on a scheduled interval (default 24h). The index is also rebuilt on first search if it doesn't exist. This avoids expensive rebuilds for batch updates.",
+    "evidence": "EmbeddingsService.update_single_node() just sets _index_dirty=True; ensure_index_built() checks existence and builds if missing; _is_building threading.Event prevents concurrent builds; search_similar() auto-builds if no index exists; background scheduler thread rebuilds periodically.",
+    "implications": "New or modified nodes may not appear in semantic search immediately — there's up to a 24-hour staleness window by default. The dirty flag approach batches updates efficiently but trades freshness for performance. The double-checked locking in ensure_index_built prevents thundering-herd rebuilds.",
+    "related_notes": ["Embedding Composition Strategy", "Thread Safety Without External Coordination"]
+  },
+  {
+    "title": "Embedding Composition Strategy",
+    "component": "embeddings.py",
+    "tags": ["ml", "search", "pattern"],
+    "insight": "Node embeddings are composed from three fields: summary + first 2000 chars of body + tags + node_type, joined by pipe separators. This enriches the vector beyond just raw content, making semantic search find nodes by type or tag similarity, not just content similarity.",
+    "evidence": "_combine_node_text() concatenates summary, body[:2000], 'Tags: ' + tags, and 'Type: ' + node_type. Uses all-MiniLM-L6-v2 model (384 dimensions) with normalized embeddings and IndexFlatIP (inner product = cosine similarity for normalized vectors).",
+    "implications": "The 2000-char body limit means long documents are truncated before embedding — good for search relevance but may miss content in very long notes. The all-MiniLM-L6-v2 model is a good tradeoff between quality and speed. IndexFlatIP provides exact search but doesn't scale to millions of vectors — an IVF or HNSW index would be needed for larger collections.",
+    "related_notes": ["On-Demand FAISS Index Build", "Hybrid Search With Score Fusion"]
+  },
+  {
+    "title": "Hybrid Search With Score Fusion",
+    "component": "api.py",
+    "tags": ["search", "pattern", "ml"],
+    "insight": "The /search/hybrid endpoint combines keyword search (substring match) and semantic search (FAISS) using weighted score fusion. Default weights are 0.3 keyword + 0.7 semantic. Keyword matches get a binary score of 1.0, while semantic matches get cosine similarity scores.",
+    "evidence": "hybrid_search endpoint computes combined = (keyword_weight * kw_score) + (semantic_weight * sem_score). Keyword score is 1.0 for all matches (binary). min_score default is 0.25 for hybrid vs 0.3 for pure semantic.",
+    "implications": "The binary keyword scoring means all substring matches are equal regardless of where/how many times the query appears. This advantages semantic matching in practice. A TF-IDF or BM25 score for keyword matches would improve fusion quality. The weights are configurable per-request, allowing users to prefer precision (keyword) or recall (semantic).",
+    "related_notes": ["Embedding Composition Strategy", "Substring Search Is O(n) Baseline"]
+  },
+  {
+    "title": "Substring Search Is O(n) Baseline",
+    "component": "storage.py",
+    "tags": ["search", "performance", "tradeoff"],
+    "insight": "The search_nodes method does case-insensitive substring matching by scanning every JSON file and checking if the query appears in summary or body fields. This is the simplest possible search — no indexing, no ranking, no stemming.",
+    "evidence": "search_nodes: iterates all *.json files, loads each, checks `query_lower in data['summary'].lower() or query_lower in data['body'].lower()`. Comment in code: 'Note: This scans all node files. For large knowledge bases, use the /embeddings/search endpoint instead which uses FAISS for O(log n) lookup.'",
+    "implications": "Functional for personal-scale (hundreds of nodes) but doesn't scale. The comment explicitly points users to semantic search for performance. This is the keyword half of hybrid search. A full-text search library (e.g., SQLite FTS5) would improve this dramatically without adding heavy infrastructure.",
+    "related_notes": ["JSON File-Per-Node Storage Pattern", "Hybrid Search With Score Fusion"]
+  },
+  {
+    "title": "Celery + Redis Async Ingestion Pipeline",
+    "component": "ingest.py",
+    "tags": ["architecture", "ingestion", "async", "pattern"],
+    "insight": "Document and URL ingestion runs as Celery tasks with Redis as the job broker. The job state is tracked in a Redis-based JobStore (sorted sets for ordering, hash-like keys for job data). This separates long-running ingestion from the API request lifecycle.",
+    "evidence": "Celery app configured with REDIS_URL broker and backend; JobStore class uses Redis for job persistence; IngestJob model tracks status (PENDING/PROCESSING/COMPLETED/FAILED) with progress; API endpoints create jobs and return immediately, clients poll for status.",
+    "implications": "Redis is a hard dependency for ingestion but gracefully degraded — get_job_store_safe() returns None if Redis isn't available, and the API still works for direct node creation. The lazy initialization pattern avoids import-time failures when Redis isn't running.",
+    "related_notes": ["Graceful Degradation Of Optional Dependencies", "Content Hash Dedup In Ingestion"]
+  },
+  {
+    "title": "Graceful Degradation Of Optional Dependencies",
+    "component": "ingest.py",
+    "tags": ["architecture", "resilience", "pattern"],
+    "insight": "Multiple optional dependencies (watchdog for file watching, playwright for JS rendering, unstructured for document parsing) are imported inside try/except blocks with Boolean flags. Code paths check these flags and fall back to simpler alternatives.",
+    "evidence": "WATCHDOG_AVAILABLE, PLAYWRIGHT_AVAILABLE, UNSTRUCTURED_AVAILABLE flags set at import time. fetch_url uses Playwright if available, falls back to trafilatura+requests. process_document uses unstructured if available, falls back to pypdf/python-docx. This pattern also appears for OpenAI and Anthropic imports in api.py.",
+    "implications": "The application can start and function with minimal dependencies, adding capability when libraries are installed. This is excellent for progressive deployment. The tradeoff is that feature behavior differs depending on what's installed, which can cause confusing bugs if not documented.",
+    "related_notes": ["Celery + Redis Async Ingestion Pipeline"]
+  },
+  {
+    "title": "Content Hash Dedup In Ingestion",
+    "component": "ingest.py",
+    "tags": ["pattern", "data-integrity", "ingestion"],
+    "insight": "Both document and URL ingestion compute SHA-256 hashes of extracted content and check against the 200 most recent completed jobs before creating a node. Duplicate content returns the existing node_id instead of creating a duplicate.",
+    "evidence": "JobStore.find_by_content_hash() scans recent 200 completed jobs for matching content_hash. process_document and fetch_url both compute hashlib.sha256(content.encode()).hexdigest() and check for existing before creating a node. Duplicates get a 'deduplicated' flag in metadata.",
+    "implications": "Prevents knowledge graph pollution from re-ingesting the same content. The 200-job scan window means if more than 200 jobs have been processed, older dedup records are lost. Uploaded files are cleaned up after processing (unlink) only if they're in an 'uploads' directory, preventing accidental deletion of source files.",
+    "related_notes": ["Celery + Redis Async Ingestion Pipeline", "JSON File-Per-Node Storage Pattern"]
+  },
+  {
+    "title": "LLM-Augmented Knowledge Graph Interrogation",
+    "component": "api.py",
+    "tags": ["pattern", "ai", "architecture"],
+    "insight": "The /search/ai/interrogate endpoint implements Retrieval-Augmented Generation (RAG): it first retrieves relevant nodes via semantic search, then includes their summaries, body previews, and neighbor relationships as context in a prompt to an LLM. Both OpenAI and Anthropic are supported with streaming.",
+    "evidence": "_build_interrogate_context does semantic search → loads nodes → adds neighbor summaries. _build_llm_prompt structures context with node type, tags, connections, and relevance scores. _call_llm dispatches to OpenAI or Anthropic. Streaming support via _call_llm_stream with sentence-chunked cache replay.",
+    "implications": "This is a practical RAG implementation where the knowledge graph structure enhances LLM responses — not just raw text but typed relationships between ideas. The neighbor exploration adds graph context that plain vector search can't provide. The LLM cache with sentence-chunked replay for cached streaming responses is a clever optimization that avoids re-calling the LLM for repeated questions.",
+    "related_notes": ["In-Process LLM Response Cache", "Embedding Composition Strategy"]
+  },
+  {
+    "title": "Input Sanitization Defense In Depth",
+    "component": "api.py",
+    "tags": ["security", "pattern"],
+    "insight": "Node creation and update endpoints apply three layers of input validation: Pydantic schema validation (min length, max length), dangerous-pattern blocking (script tags, JS protocol, event handlers, iframes), and HTML escaping via html.escape(). UUID validation prevents path traversal on node IDs.",
+    "evidence": "sanitize_string normalizes unicode, strips SQL injection patterns, applies html.escape, and truncates. validate_safe_input checks compiled regex patterns for XSS. validate_node_id enforces UUID format. NodeCreate model requires body >= 10 chars, summary 1-300 chars.",
+    "implications": "Multiple defense layers catch what any single layer might miss (e.g., unicode homograph attacks are normalized before HTML escaping). The approach is thorough but not complete — no CSRF protection, no Content-Security-Policy headers, and the SQL injection patterns are a superficial check (no SQL is actually used since storage is JSON files).",
+    "related_notes": ["Tiered API Key Authentication With Grace-Period Rotation"]
+  },
+  {
+    "title": "Background Threads In API Process",
+    "component": "api.py",
+    "tags": ["architecture", "concurrency", "pattern"],
+    "insight": "Three background operations run as daemon threads within the API process: periodic trash cleanup (every 24h), periodic embeddings index rebuild (configurable), and lazy embeddings rebuild after node updates (with 2-second debounce). All use threading.Event for clean shutdown.",
+    "evidence": "run_periodic_cleanup runs in a daemon thread with _periodic_cleanup_stop Event; start_scheduler creates a daemon thread with _stop_scheduler Event; update_node_embedding spawns a thread that sleeps 2 seconds before rebuilding. Embeddings module also has _is_building Event to prevent concurrent index builds.",
+    "implications": "Daemon threads are killed when the main process exits, so cleanup operations may be interrupted. The 2-second debounce for embedding rebuilds batches rapid successive updates but may leave the index stale briefly. Using threads (not async tasks) means CPU-bound embedding computation blocks an OS thread, but avoids event loop blocking in the async API.",
+    "related_notes": ["Thread Safety Without External Coordination", "On-Demand FAISS Index Build"]
+  },
+  {
+    "title": "Recursive Graph Exploration With Cycle Detection",
+    "component": "api.py",
+    "tags": ["algorithm", "data-structure", "pattern"],
+    "insight": "The /search/ai/explore/{node_id} endpoint implements recursive neighborhood exploration up to a configurable depth (max 10). It uses a shared visited set passed by reference to prevent infinite loops — this was explicitly fixed from an earlier version that copied the set per branch.",
+    "evidence": "get_neighbors_recursive function with depth parameter, visited set, MAX_DEPTH=10 cap. Comment: 'Fixed: Use single visited set passed by reference, not a copy'. Neighbor data includes relationship type and weight for graph-aware context.",
+    "implications": "Depth-limited exploration with shared visited set ensures termination even in cyclic graphs. The max depth of 10 prevents runaway traversal. The exploration result is a nested structure suitable for LLM context, giving the AI model a map of connected ideas rather than just a flat list.",
+    "related_notes": ["LLM-Augmented Knowledge Graph Interrogation", "Edges Stored Inline Within Nodes"]
+  },
+  {
+    "title": "Ingestion Tags Source Type",
+    "component": "ingest.py",
+    "tags": ["ingestion", "data-model", "pattern"],
+    "insight": "Ingested content is automatically tagged with its source type: documents get `['ingested:{ext}', 'document']` and bookmarks get `['bookmark', 'web', 'ingested']`. The auto-generated summary is the first 300 chars or first line of content, truncated if less than 10 chars.",
+    "evidence": "process_document: `tags=[f'ingested:{ext[1:]}', 'document']`, author='Ingest System'. fetch_url: `tags=['bookmark', 'web', 'ingested']`, node_type=NodeType.BOOKMARKS. Summary generation: `content[:300].split('\\n')[0].strip()`.",
+    "implications": "The ingested: prefix pattern enables filtering by source format (e.g., all PDF-sourced nodes). Auto-generated summaries may be poor for structured documents where the first line isn't descriptive. The 'Ingest System' author tag distinguishes machine-created nodes from human ones.",
+    "related_notes": ["NodeType Enum Defines Knowledge Ontology", "Content Hash Dedup In Ingestion"]
+  }
+]

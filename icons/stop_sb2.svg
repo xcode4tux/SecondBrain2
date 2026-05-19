@@ -1,0 +1,72 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glass" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feComposite in="blur" in2="SourceGraphic" operator="arithmetic" k2="0.5" k3="0.5"/>
+    </filter>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="brainGradStop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f87171;stop-opacity:1"/>
+      <stop offset="50%" style="stop-color:#dc143c;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#991b1b;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="nodeGradStop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fca5a5;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#f87171;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+  <!-- Background: dark rounded square -->
+  <rect x="0" y="0" width="256" height="256" rx="36" ry="36" fill="#1e1e1e"/>
+  <!-- Glass effect: white overlay with blur -->
+  <circle cx="128" cy="128" r="100" fill="white" fill-opacity="0.15" filter="url(#glass)"/>
+  <!-- Inner shadow -->
+  <rect x="0" y="0" width="256" height="256" rx="36" ry="36" fill="black" fill-opacity="0.08"/>
+
+  <!-- Brain outline — left hemisphere (dimmed, stopping) -->
+  <path d="M 128 58 C 108 58 95 68 90 82 C 82 78 72 82 68 92 C 62 104 66 116 74 122 C 64 126 58 136 60 148 C 62 158 70 164 78 166 C 76 174 80 184 90 190 C 98 194 108 192 114 186 C 118 194 126 198 134 198" 
+        fill="none" stroke="url(#brainGradStop)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.7"/>
+  
+  <!-- Brain outline — right hemisphere (dimmed) -->
+  <path d="M 128 58 C 148 58 161 68 166 82 C 174 78 184 82 188 92 C 194 104 190 116 182 122 C 192 126 198 136 196 148 C 194 158 186 164 178 166 C 180 174 176 184 166 190 C 158 194 148 192 142 186 C 138 194 130 198 122 198" 
+        fill="none" stroke="url(#brainGradStop)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.7"/>
+
+  <!-- Brain fissure (center line) -->
+  <path d="M 128 62 C 128 80 126 100 128 120 C 130 140 128 160 128 196" 
+        fill="none" stroke="#dc143c" stroke-width="3" stroke-opacity="0.35" stroke-dasharray="6,4" stroke-linecap="round"/>
+
+  <!-- Neural nodes (dimmed, deactivating) -->
+  <circle cx="88" cy="88" r="5" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.6"/>
+  <circle cx="82" cy="108" r="4" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.5"/>
+  <circle cx="76" cy="136" r="4.5" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.5"/>
+  <circle cx="86" cy="162" r="4" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.4"/>
+  <circle cx="168" cy="88" r="5" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.6"/>
+  <circle cx="174" cy="108" r="4" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.5"/>
+  <circle cx="180" cy="136" r="4.5" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.5"/>
+  <circle cx="170" cy="162" r="4" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.4"/>
+  <circle cx="128" cy="78" r="4.5" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.5"/>
+  <circle cx="100" cy="125" r="3.5" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.4"/>
+  <circle cx="156" cy="125" r="3.5" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.4"/>
+  <circle cx="128" cy="185" r="4.5" fill="url(#nodeGradStop)" filter="url(#glow)" opacity="0.4"/>
+
+  <!-- Neural connections (fading) -->
+  <line x1="88" y1="88" x2="82" y2="108" stroke="#dc143c" stroke-width="1.5" stroke-opacity="0.35"/>
+  <line x1="82" y1="108" x2="76" y2="136" stroke="#dc143c" stroke-width="1.5" stroke-opacity="0.3"/>
+  <line x1="76" y1="136" x2="86" y2="162" stroke="#dc143c" stroke-width="1.5" stroke-opacity="0.25"/>
+  <line x1="168" y1="88" x2="174" y2="108" stroke="#dc143c" stroke-width="1.5" stroke-opacity="0.35"/>
+  <line x1="174" y1="108" x2="180" y2="136" stroke="#dc143c" stroke-width="1.5" stroke-opacity="0.3"/>
+  <line x1="180" y1="136" x2="170" y2="162" stroke="#dc143c" stroke-width="1.5" stroke-opacity="0.25"/>
+
+  <!-- Stop overlay: crimson rounded square centered on brain -->
+  <rect x="88" y="92" width="80" height="72" rx="12" ry="12" fill="#dc143c" fill-opacity="0.9"/>
+  <!-- Inner highlight on stop square -->
+  <rect x="92" y="96" width="72" height="64" rx="10" ry="10" fill="white" fill-opacity="0.08"/>
+  <!-- Stop text "II" (pause bars) -->
+  <rect x="108" y="104" width="10" height="48" rx="3" ry="3" fill="white" fill-opacity="0.95"/>
+  <rect x="138" y="104" width="10" height="48" rx="3" ry="3" fill="white" fill-opacity="0.95"/>
+</svg>
