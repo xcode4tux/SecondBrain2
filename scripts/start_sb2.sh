@@ -66,6 +66,12 @@ if flatpak list 2>/dev/null | grep -q md.obsidian.Obsidian; then
     OBSIDIAN_CMD="flatpak run md.obsidian.Obsidian"
     # Flatpak Obsidian uses --path for vault argument
     OBSIDIAN_USES_PATH_ARG=true
+    # On Wayland, force native Wayland rendering to avoid XWayland
+    # coordinate translation issues (erratic graph dragging on HiDPI).
+    # Requires: flatpak override --user --socket=wayland md.obsidian.Obsidian
+    if [ -n "$WAYLAND_DISPLAY" ]; then
+        OBSIDIAN_WAYLAND_FLAGS="--ozone-platform=wayland --enable-features=UseOzonePlatform"
+    fi
 elif [ -f /usr/bin/obsidian ]; then
     OBSIDIAN_CMD="/usr/bin/obsidian"
 elif [ -f /snap/bin/obsidian ]; then
@@ -81,10 +87,10 @@ if [ -n "$OBSIDIAN_CMD" ]; then
         # Flatpak manages its own process lifecycle — just launch it and move on.
         # Using systemd-run --user ensures the process survives terminal close.
         if command -v systemd-run > /dev/null 2>&1; then
-            systemd-run --user --no-block $OBSIDIAN_CMD --path="$VAULT" > /dev/null 2>&1 || \
+            systemd-run --user --no-block $OBSIDIAN_CMD $OBSIDIAN_WAYLAND_FLAGS --path="$VAULT" > /dev/null 2>&1 || \
                 nohup $OBSIDIAN_CMD --path="$VAULT" > /dev/null 2>&1 &
         else
-            nohup $OBSIDIAN_CMD --path="$VAULT" > /dev/null 2>&1 &
+            nohup $OBSIDIAN_CMD $OBSIDIAN_WAYLAND_FLAGS --path="$VAULT" > /dev/null 2>&1 &
         fi
     else
         nohup $OBSIDIAN_CMD "$VAULT" > /dev/null 2>&1 &
